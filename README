@@ -3,6 +3,10 @@ guile-colorized
 
 colorized REPL for GNU Guile
 
+* INSTALL
+Just type "sudo make install". (There's no need to run "make")
+
+* TEST
 Copy these lines below to your REPL for test:
 -------------------------------
 (use-modules (oop goops) (rnrs) (ice-9 colorised))
@@ -10,6 +14,7 @@ Copy these lines below to your REPL for test:
 `(this-is-a-symbol 1 2.5 2/5 #\c "asdf" ,(lambda () #t) ,(cons 1 2) ,(vector 1 2 3) #2u32@2@3((1 2) (3 4)) ,(make-bytevector 10 99) ,<object>)
 -------------------------------
 
+* ENJOY
 And you may add these to your ~/.guile
 -------------------------------
 (use-modules (ice-9 colorised))

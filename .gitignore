@@ -5,7 +5,6 @@ configure
 obj/*
 *.so
 *.o
-Makefile
 .deps
 .libs
 autom4te.cache
