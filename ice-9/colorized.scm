@@ -69,15 +69,16 @@
 
 (define* (pre-print cs #:optional (port (current-output-port)))
   (let* ((class (color-scheme-class cs))
+	 (control (color-scheme-control cs))
 	 (sign (assoc-ref *pre-sign* class))
 	 (color (color-scheme-color cs))) ;; (car color) is the color, (cdr color) is the control
     (if sign
-	(display (color-it-inner color sign "") port)  ;; not array
+	(display (color-it-inner color sign control) port)  ;; not array
 	(display (color-array-inner cs) port) ;; array complecated coloring
 	)))
 
 (define (print-dot port)
-  (display (color-it-inner 'light-cyan "." "") port))
+  (display (color-it-inner 'light-cyan "." "0") port))
 
 (define is-sign?
   (lambda (ch)
@@ -86,8 +87,9 @@
 (define color-array-inner
   (lambda (cs)
     (let* ((colors (color-scheme-color cs))
+	   (control (color-scheme-control cs))
 	   (sign-color (car colors))
-	   (attr-color (cdr colors))
+	   (attr-color (cadr colors))
 	   (str (color-scheme-str cs))
 	   (attrs (string->list 
 		   (call-with-input-string str (lambda (p) (read-delimited "(" p))))))
@@ -95,14 +97,17 @@
        (lambda (port)
 	 (for-each (lambda (ch)
 		     (let ((color (if (is-sign? ch) sign-color attr-color)))
-		       (display (color-it-inner color (string ch) "") port)))
-		   attrs))))))
+		       (display (color-it-inner color (string ch) control) port)))
+		   attrs)
+	 (display (color-it-inner sign-color "(" control) port) ;; output right-parent
+	 )))))
 
 ;; I believe all end-sign is ")"      
 (define* (post-print cs #:optional (port (current-output-port)))
   (let* ((c (color-scheme-color cs))
+	 (control (color-scheme-control cs))
 	 (color (if (list? c) (car c) c))) ;; array has a color-list
-    (display (color-it-inner color ")" "") port)))
+    (display (color-it-inner color ")" control) port)))
 
 (define (color-integer cs)
   (color-it cs))
@@ -132,7 +137,7 @@
      (lambda (port)
        (pre-print cs port)
        (colorize d1 port)
-       (print-dot port)
+       (display " " port) (print-dot port) (display " " port)
        (colorize d2 port)
        (post-print cs port)))))
 
@@ -147,7 +152,8 @@
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
-       (vector-for-each (lambda (x) (colorize x port)) vv)
+       (vector-for-each (lambda (x) (colorize x port) (display " " port)) vv)
+       (seek port -1 SEEK_CUR)
        (post-print cs port)))))
     
 (define (color-keyword cs)
@@ -169,6 +175,20 @@
 (define (color-real cs)
   (color-it cs))
 
+(define (color-fraction cs)
+  (let* ((data (color-scheme-data cs))
+	 (colors (color-scheme-color cs))
+	 (num-color (car colors))
+	 (div-color (cadr colors))
+	 (control (color-scheme-control cs))
+	 (n (object->string (numerator data)))
+	 (d (object->string (denominator data))))
+    (call-with-output-string
+     (lambda (port)
+       (display (color-it-inner num-color n control) port)
+       (display (color-it-inner div-color "/" control) port)
+       (display (color-it-inner num-color d control) port)))))
+
 (define (color-regexp cs)
   (color-it cs))
 
@@ -181,7 +201,8 @@
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
-       (for-each (lambda (x) (colorize x port)) ll)
+       (for-each (lambda (x) (colorize x port) (display " " port)) ll)
+       (seek port -1 SEEK_CUR)
        (post-print cs port)))))
 
 (define (color-boolean cs)
@@ -195,7 +216,8 @@
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
-       (for-each (lambda (x) (colorize x port)) ll) ;; easy life to use list rather than array.
+       (for-each (lambda (x) (colorize x port) (display " " port)) ll) ;; easy life to use list rather than array.
+       (seek port -1 SEEK_CUR)
        (post-print cs port)))))
 
 (define (color-complex cs)
@@ -218,20 +240,21 @@
     (,<list> ,color-list light-blue)
     (,<pair> ,color-list light-gray) ;; NOTE: proper-list is a <pair>, and cons is <pair> too, so call color-list either.
     (,<class> ,color-class light-cyan)
-    (,<procedure> ,color-procedure yello)
+    (,<procedure> ,color-procedure yellow)
     (,<vector> ,color-vector light-purple)
     (,<keyword> ,color-keyword purple)
     (,<character-set> ,color-char-set white)
     (,<symbol> ,color-symbol light-green)
     (,<stack> ,color-stack purple)
     (,<record-type> ,color-record-type dark-gray)
-    (,<real> ,color-real yello)
+    (,<real> ,color-real yellow)
+    (,<fraction> ,color-fraction (light-blue yellow))
     (,<regexp> ,color-regexp green)
     (,<bitvector> ,color-bitvector brown)
     (,<bytevector> ,color-bytevector cyan)
     (,<boolean> ,color-boolean blue)
     (,<arbiter> ,color-arbiter blue)
-    (,<array> ,color-array (light-cyan brown cyan))
+    (,<array> ,color-array (light-cyan brown))
     (,<complex> ,color-complex purple)
     (,<hashtable> ,color-hashtable blue)
     (,<hook> ,color-hook green)
@@ -247,7 +270,7 @@
 	   (r (assoc-ref *colorize-list* class))
 	   (method (car r))
 	   (color (cadr r)))
-      (make-color-scheme str data class color "" method)))) 
+      (make-color-scheme str data class color "0" method)))) 
 
 (define* (colorize-it data #:optional (port (current-output-port)))
   (colorize data port)
