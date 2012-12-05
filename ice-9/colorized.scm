@@ -18,10 +18,18 @@
   #:use-module (rnrs)
   #:use-module (ice-9 rdelim)
   #:use-module (srfi srfi-1)
+  #:use-module (system repl common)
   #:export (activate-colorized))
 
+(define (colorized-repl-printer repl val)
+  (if (not (eq? val *unspecified*))
+      (begin
+	(run-hook before-print-hook val)
+	(colorize-it val))))
+
 (define (activate-colorized)
-  (add-hook! before-print-hook colorize-it))
+  (repl-option-set! (car (fluid-ref *repl-stack*))
+		    'print colorized-repl-printer))
 
 (define-record-type color-scheme
   (fields str data class color control method))
