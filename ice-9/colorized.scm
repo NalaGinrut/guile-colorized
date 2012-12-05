@@ -1,17 +1,18 @@
-;;  Copyright (C) 2012
-;;      "Mu Lei" known as "NalaGinrut" <NalaGinrut@gmail.com>
-;;  Guile-colorized is free software: you can redistribute it and/or modify
-;;  it under the terms of the GNU General Public License as published by
-;;  the Free Software Foundation, either version 3 of the License, or
-;;  (at your option) any later version.
+;; Copyright (C) 2012 Free Software Foundation, Inc.
 
-;;  Guile-colorized is distributed in the hope that it will be useful,
-;;  but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;  GNU General Public License for more details.
-
-;;  You should have received a copy of the GNU General Public License
-;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;;; This library is free software; you can redistribute it and/or
+;;;; modify it under the terms of the GNU Lesser General Public
+;;;; License as published by the Free Software Foundation; either
+;;;; version 3 of the License, or (at your option) any later version.
+;;;; 
+;;;; This library is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;;;; Lesser General Public License for more details.
+;;;; 
+;;;; You should have received a copy of the GNU Lesser General Public
+;;;; License along with this library; if not, write to the Free Software
+;;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 (define-module (ice-9 colorized)
   #:use-module (oop goops)
@@ -21,12 +22,13 @@
   #:use-module (system repl common)
   #:export (activate-colorized))
 
+;; TODO:
+;;     1. rewrite type-checker without GOOPS
+;;     2. add term-color? or write term-color compatible interface
+;;     3. maybe let users define their color scheme in '~/.guile'?
 (define (colorized-repl-printer repl val)
-  (if (not (eq? val *unspecified*))
-      (begin
-	(run-hook before-print-hook val)
-	(colorize-it val))))
-
+  (colorize-it val))
+      
 (define (activate-colorized)
   (repl-option-set! (car (fluid-ref *repl-stack*))
 		    'print colorized-repl-printer))
