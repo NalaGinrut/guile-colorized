@@ -37,27 +37,44 @@
   (fields str data type color control method))
   
 (define *color-list*
-  '((nothing      .  "0;0")
-    (black        .  "0;30")
-    (red          .  "0;31")
-    (green        .  "0;32")
-    (brown        .  "0;33")
-    (blue         .  "0;34")
-    (cyan         .  "0;36")
-    (purple       .  "0;35")
-    (light-gray   .  "0;37")
-    (dark-gray    .  "1;30")
-    (light-red    .  "1;31")
-    (light-green  .  "1;32")
-    (yellow       .  "1;33")
-    (light-blue   .  "1;34")
-    (light-cyan   .  "1;36")
-    (light-purple .  "1;35")
-    (white        .  "1;37")))
+  `((CLEAR       .   "0")
+    (RESET       .   "0")
+    (BOLD        .   "1")
+    (DARK        .   "2")
+    (UNDERLINE   .   "4")
+    (UNDERSCORE  .   "4")
+    (BLINK       .   "5")
+    (REVERSE     .   "6")
+    (CONCEALED   .   "8")
+    (BLACK       .  "30")
+    (RED         .  "31")
+    (GREEN       .  "32")
+    (YELLOW      .  "33")
+    (BLUE        .  "34")
+    (MAGENTA     .  "35")
+    (CYAN        .  "36")
+    (WHITE       .  "37")
+    (ON-BLACK    .  "40")
+    (ON-RED      .  "41")
+    (ON-GREEN    .  "42")
+    (ON-YELLOW   .  "43")
+    (ON-BLUE     .  "44")
+    (ON-MAGENTA  .  "45")
+    (ON-CYAN     .  "46")
+    (ON-WHITE    .  "47")))
 
 (define get-color
   (lambda (color)
     (assoc-ref *color-list* color)))
+
+(define generate-color
+  (lambda (colors)
+    (let ((color-list 
+	   (remove not 
+		   (map (lambda (c) (assoc-ref *color-list* c)) colors))))
+      (if (null? color-list)
+	  ""
+	   (string-join color-list ";" 'infix)))))
 
 (define color-it
   (lambda (cs)
@@ -68,7 +85,13 @@
 
 (define color-it-inner
   (lambda (color str control)
-    (string-append "\x1b[" (get-color color) "m" str "\x1b[" control "m")))
+    (string-append "\x1b[" (generate-color color) "m" str "\x1b[" (generate-color control) "m")))
+
+(define* (space #:optional (port (current-output-port)))
+  (display #\sp port))
+
+(define (backspace port)
+  (seek port -1 SEEK_CUR))
 
 (define *pre-sign* 
   `((LIST       .   "(") 
@@ -88,7 +111,8 @@
 	)))
 
 (define (print-dot port)
-  (display (color-it-inner 'light-cyan "." "0") port))
+  (let ((light-cyan '(CYAN CLEAR ON-BLACK)))
+    (display (color-it-inner light-cyan "." 'RESET) port)))
 
 (define is-sign?
   (lambda (ch)
@@ -129,13 +153,13 @@
   (color-it cs))
 
 (define (color-list cs)
-  (let ((data (color-scheme-data cs)))
+  (let* ((data (color-scheme-data cs)))
     (if (proper-list? data)
 	(call-with-output-string
 	 (lambda (port)
 	   (pre-print cs port)
-	   (for-each (lambda (x) (colorize x port) (display " " port)) data)
-	   (seek port -1 SEEK_CUR)
+	   (for-each (lambda (x) (colorize x port) (space port)) data)
+	   (backspace port)  ;; remove the redundant space
 	   (post-print cs port)))
 	(color-pair cs))))
     
@@ -147,7 +171,7 @@
      (lambda (port)
        (pre-print cs port)
        (colorize d1 port)
-       (display " " port) (print-dot port) (display " " port)
+       (space port) (print-dot port) (space port)
        (colorize d2 port)
        (post-print cs port)))))
 
@@ -162,8 +186,8 @@
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
-       (vector-for-each (lambda (x) (colorize x port) (display " " port)) vv)
-       (seek port -1 SEEK_CUR)
+       (vector-for-each (lambda (x) (colorize x port) (space port)) vv)
+       (backspace port) ;; remove the redundant space
        (post-print cs port)))))
     
 (define (color-keyword cs)
@@ -195,9 +219,10 @@
 	 (d (object->string (denominator data))))
     (call-with-output-string
      (lambda (port)
-       (display (color-it-inner num-color n control) port)
-       (display (color-it-inner div-color "/" control) port)
-       (display (color-it-inner num-color d control) port)))))
+       (format port "~a~a~a" 
+	       (color-it-inner num-color n control)
+	       (color-it-inner div-color "/" control)
+	       (color-it-inner num-color d control))))))
 
 (define (color-regexp cs)
   (color-it cs))
@@ -211,8 +236,8 @@
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
-       (for-each (lambda (x) (colorize x port) (display " " port)) ll)
-       (seek port -1 SEEK_CUR)
+       (for-each (lambda (x) (colorize x port) (space port)) ll)
+       (backspace port) ;; remove the redundant space
        (post-print cs port)))))
 
 (define (color-boolean cs)
@@ -226,8 +251,8 @@
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
-       (for-each (lambda (x) (colorize x port) (display " " port)) ll) ;; easy life to use list rather than array.
-       (seek port -1 SEEK_CUR)
+       (for-each (lambda (x) (colorize x port) (space port)) ll) ;; easy life to use list rather than array.
+       (backspace port)  ;; remove the redundant space
        (post-print cs port)))))
 
 (define (color-complex cs)
@@ -303,7 +328,7 @@
 	   (type (car r))
 	   (method (cadr r))
 	   (color (caddr r)))
-      (make-color-scheme str data type color "0" method)))) 
+      (make-color-scheme str data type color 'RESET method)))) 
 
 (define* (colorize-it data #:optional (port (current-output-port)))
   (colorize data port)
