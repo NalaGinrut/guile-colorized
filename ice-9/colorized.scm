@@ -20,7 +20,7 @@
   #:use-module (ice-9 rdelim)
   #:use-module (srfi srfi-1)
   #:use-module (system repl common)
-  #:export (activate-colorized))
+  #:export (activate-colorized custom-colorized-set! class? arbiter? unknown?))
 
 ;; TODO:
 ;;     1. rewrite type-checker without GOOPS
@@ -34,7 +34,7 @@
 		    'print colorized-repl-printer))
 
 (define-record-type color-scheme
-  (fields str data class color control method))
+  (fields str data type color control method))
   
 (define *color-list*
   '((nothing      .  "0;0")
@@ -71,16 +71,16 @@
     (string-append "\x1b[" (get-color color) "m" str "\x1b[" control "m")))
 
 (define *pre-sign* 
-  `((,<list>       .   "(") 
-    (,<pair>       .   "(") 
-    (,<vector>     .   "#(")
-    (,<bytevector> .   "#vu8(")
-    (,<array>      .   #f))) ;; array's sign is complecated.
+  `((LIST       .   "(") 
+    (PAIR       .   "(") 
+    (VECTOR     .   "#(")
+    (BYTEVECTOR .   "#vu8(")
+    (ARRAY      .   #f))) ;; array's sign is complecated.
 
 (define* (pre-print cs #:optional (port (current-output-port)))
-  (let* ((class (color-scheme-class cs))
+  (let* ((type (color-scheme-type cs))
 	 (control (color-scheme-control cs))
-	 (sign (assoc-ref *pre-sign* class))
+	 (sign (assoc-ref *pre-sign* type))
 	 (color (color-scheme-color cs))) ;; (car color) is the color, (cdr color) is the control
     (if sign
 	(display (color-it-inner color sign control) port)  ;; not array
@@ -182,7 +182,7 @@
 (define (color-record-type cs)
   (color-it cs))
 
-(define (color-real cs)
+(define (color-float cs)
   (color-it cs))
 
 (define (color-fraction cs)
@@ -242,45 +242,68 @@
 (define (color-unknown cs)
   (color-it cs))
 
+(define *custom-colorized-list* #f)
+(define (custom-colorized-set! ll)
+  (set! *custom-colorized-list* ll))
+
+(define (class? obj)
+  (is-a? obj <class>))
+
+(define (arbiter? obj)
+  (is-a? obj <arbiter>))
+
+(define (unknown? obj)
+  (is-a? obj <unkown>))
 
 (define *colorize-list*
-  `((,<integer> ,color-integer light-blue)
-    (,<char> ,color-char brown)
-    (,<string> ,color-string red)
-    (,<list> ,color-list light-blue)
-    (,<pair> ,color-list light-gray) ;; NOTE: proper-list is a <pair>, and cons is <pair> too, so call color-list either.
-    (,<class> ,color-class light-cyan)
-    (,<procedure> ,color-procedure yellow)
-    (,<vector> ,color-vector light-purple)
-    (,<keyword> ,color-keyword purple)
-    (,<character-set> ,color-char-set white)
-    (,<symbol> ,color-symbol light-green)
-    (,<stack> ,color-stack purple)
-    (,<record-type> ,color-record-type dark-gray)
-    (,<real> ,color-real yellow)
-    (,<fraction> ,color-fraction (light-blue yellow))
-    (,<regexp> ,color-regexp green)
-    (,<bitvector> ,color-bitvector brown)
-    (,<bytevector> ,color-bytevector cyan)
-    (,<boolean> ,color-boolean blue)
-    (,<arbiter> ,color-arbiter blue)
-    (,<array> ,color-array (light-cyan brown))
-    (,<complex> ,color-complex purple)
-    (,<hashtable> ,color-hashtable blue)
-    (,<hook> ,color-hook green)
-    (,<unknown> ,color-unknown white)
+  `((,integer? INTEGER ,color-integer light-blue)
+    (,char? CHAR ,color-char brown)
+    (,string? STRING ,color-string red)
+    (,list? LIST ,color-list light-blue)
+    (,pair? PAIR ,color-list light-gray) ;; NOTE: proper-list is a <pair>, and cons is <pair> too, so call color-list either.
+    (,class? CLASS ,color-class light-cyan)
+    (,procedure? PROCEDURE ,color-procedure yellow)
+    (,vector? VECTOR ,color-vector light-purple)
+    (,keyword? KEYWORD ,color-keyword purple)
+    (,char-set? CHAR-SET ,color-char-set white)
+    (,symbol? SYMBOL ,color-symbol light-green)
+    (,stack? STACK ,color-stack purple)
+    (,record-type? RECORD-TYPE ,color-record-type dark-gray)
+    ;; We don't check REAL here, since it'll cover FLOAT and FRACTION, but user may customs it as they wish.
+    (,inexact? FLOAT ,color-float yellow)
+    (,exact? FRACTION ,color-fraction (light-blue yellow))
+    (,regexp? REGEXP ,color-regexp green)
+    (,bitvector? BITVECTOR ,color-bitvector brown)
+    (,bytevector? BYTEVECTOR ,color-bytevector cyan)
+    (,boolean? BOOLEAN ,color-boolean blue)
+    (,arbiter? ARBITER ,color-arbiter blue)
+    (,array? ARRAY ,color-array (light-cyan brown))
+    (,complex? COMPLEX ,color-complex purple)
+    (,hash-table? HASH-TABLE ,color-hashtable blue)
+    (,hook? HOOK ,color-hook green)
     ;; TODO: if there's anything to add
     ))
 
+(define type-checker
+  (lambda (data)
+    (call/cc (lambda (return)
+	       (for-each (lambda (x)  ;; checkout user defined data type
+			   (and ((car x) data) (return (cdr x))))
+			 *custom-colorized-list*)
+	       (for-each (lambda (x)  ;; checkout default data type
+			   (and ((car x) data) (return (cdr x))))
+			 *colorized-list*)
+	       (return (list UNKNOWN color-unknown white)))))) ;; no suitable data type ,return the unknown solution
+	      
 ;; NOTE: we don't use control now, but I write the mechanism for future usage.
 (define generate-color-scheme
   (lambda (data)
-    (let* ((class (class-of data))
-	   (str (object->string data))
-	   (r (assoc-ref *colorize-list* class))
-	   (method (car r))
-	   (color (cadr r)))
-      (make-color-scheme str data class color "0" method)))) 
+    (let* ((str (object->string data))
+	   (r (type-checker data))
+	   (type (car r))
+	   (method (cadr r))
+	   (color (caddr r)))
+      (make-color-scheme str data type color "0" method)))) 
 
 (define* (colorize-it data #:optional (port (current-output-port)))
   (colorize data port)
