@@ -16,9 +16,10 @@
 
 (define-module (ice-9 colorized)
   #:use-module (oop goops)
-  #:use-module (rnrs)
+  #:use-module ((rnrs) #:select (bytevector->u8-list define-record-type 
+				vector-for-each bytevector?))
   #:use-module (ice-9 rdelim)
-  #:use-module (srfi srfi-1)
+  #:use-module ((srfi srfi-1) #:select (remove proper-list?))
   #:use-module (system repl common)
   #:export (activate-colorized custom-colorized-set! class? arbiter? unknown?))
 
@@ -112,7 +113,7 @@
 
 (define (print-dot port)
   (let ((light-cyan '(CYAN CLEAR ON-BLACK)))
-    (display (color-it-inner light-cyan "." 'RESET) port)))
+    (display (color-it-inner light-cyan "." '(RESET)) port)))
 
 (define is-sign?
   (lambda (ch)
@@ -140,7 +141,7 @@
 (define* (post-print cs #:optional (port (current-output-port)))
   (let* ((c (color-scheme-color cs))
 	 (control (color-scheme-control cs))
-	 (color (if (list? c) (car c) c))) ;; array has a color-list
+	 (color (if (list? (car c)) (car c) c))) ;; array has a color-list
     (display (color-it-inner color ")" control) port)))
 
 (define (color-integer cs)
@@ -267,9 +268,15 @@
 (define (color-unknown cs)
   (color-it cs))
 
-(define *custom-colorized-list* #f)
+(define *custom-colorized-list* '())
 (define (custom-colorized-set! ll)
   (set! *custom-colorized-list* ll))
+
+(define (float? obj)
+  (is-a? obj <real>))
+
+(define (fraction? obj)
+  (is-a? obj <fraction>))
 
 (define (class? obj)
   (is-a? obj <class>))
@@ -278,34 +285,34 @@
   (is-a? obj <arbiter>))
 
 (define (unknown? obj)
-  (is-a? obj <unkown>))
+  (is-a? obj <unknown>))
 
 (define *colorize-list*
-  `((,integer? INTEGER ,color-integer light-blue)
-    (,char? CHAR ,color-char brown)
-    (,string? STRING ,color-string red)
-    (,list? LIST ,color-list light-blue)
-    (,pair? PAIR ,color-list light-gray) ;; NOTE: proper-list is a <pair>, and cons is <pair> too, so call color-list either.
-    (,class? CLASS ,color-class light-cyan)
-    (,procedure? PROCEDURE ,color-procedure yellow)
-    (,vector? VECTOR ,color-vector light-purple)
-    (,keyword? KEYWORD ,color-keyword purple)
-    (,char-set? CHAR-SET ,color-char-set white)
-    (,symbol? SYMBOL ,color-symbol light-green)
-    (,stack? STACK ,color-stack purple)
-    (,record-type? RECORD-TYPE ,color-record-type dark-gray)
+  `((,integer? INTEGER ,color-integer (BLUE BOLD))
+    (,char? CHAR ,color-char (YELLOW))
+    (,string? STRING ,color-string (RED))
+    (,list? LIST ,color-list (BLUE BOLD))
+    (,pair? PAIR ,color-list (BLACK BOLD)) ;; NOTE: proper-list is a <pair>, and cons is <pair> too, so call color-list either.
+    (,class? CLASS ,color-class (CYAN BOLD))
+    (,procedure? PROCEDURE ,color-procedure (YELLOW BOLD))
+    (,vector? VECTOR ,color-vector (MAGENTA BOLD))
+    (,keyword? KEYWORD ,color-keyword (MAGENTA))
+    (,char-set? CHAR-SET ,color-char-set (WHITE))
+    (,symbol? SYMBOL ,color-symbol (GREEN BOLD))
+    (,stack? STACK ,color-stack (MAGENTA))
+    (,record-type? RECORD-TYPE ,color-record-type (BLACK BOLD))
     ;; We don't check REAL here, since it'll cover FLOAT and FRACTION, but user may customs it as they wish.
-    (,inexact? FLOAT ,color-float yellow)
-    (,exact? FRACTION ,color-fraction (light-blue yellow))
-    (,regexp? REGEXP ,color-regexp green)
-    (,bitvector? BITVECTOR ,color-bitvector brown)
-    (,bytevector? BYTEVECTOR ,color-bytevector cyan)
-    (,boolean? BOOLEAN ,color-boolean blue)
-    (,arbiter? ARBITER ,color-arbiter blue)
-    (,array? ARRAY ,color-array (light-cyan brown))
-    (,complex? COMPLEX ,color-complex purple)
-    (,hash-table? HASH-TABLE ,color-hashtable blue)
-    (,hook? HOOK ,color-hook green)
+    (,float? FLOAT ,color-float (YELLOW))
+    (,fraction? FRACTION ,color-fraction ((BLUE BOLD) (YELLOW)))
+    (,regexp? REGEXP ,color-regexp (GREEN))
+    (,bitvector? BITVECTOR ,color-bitvector (YELLOW BOLD))
+    (,bytevector? BYTEVECTOR ,color-bytevector (CYAN))
+    (,boolean? BOOLEAN ,color-boolean (BLUE))
+    (,arbiter? ARBITER ,color-arbiter (BLUE))
+    (,array? ARRAY ,color-array ((CYAN BOLD) (YELLOW BOLD)))
+    (,complex? COMPLEX ,color-complex (MAGENTA))
+    (,hash-table? HASH-TABLE ,color-hashtable (BLUE))
+    (,hook? HOOK ,color-hook (GREEN))
     ;; TODO: if there's anything to add
     ))
 
@@ -317,8 +324,8 @@
 			 *custom-colorized-list*)
 	       (for-each (lambda (x)  ;; checkout default data type
 			   (and ((car x) data) (return (cdr x))))
-			 *colorized-list*)
-	       (return (list UNKNOWN color-unknown white)))))) ;; no suitable data type ,return the unknown solution
+			 *colorize-list*)
+	       (return `(UNKNOWN ,color-unknown white)))))) ;; no suitable data type ,return the unknown solution
 	      
 ;; NOTE: we don't use control now, but I write the mechanism for future usage.
 (define generate-color-scheme
@@ -328,7 +335,7 @@
 	   (type (car r))
 	   (method (cadr r))
 	   (color (caddr r)))
-      (make-color-scheme str data type color 'RESET method)))) 
+      (make-color-scheme str data type color '(RESET) method)))) 
 
 (define* (colorize-it data #:optional (port (current-output-port)))
   (colorize data port)
