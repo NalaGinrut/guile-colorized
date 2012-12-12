@@ -16,17 +16,13 @@
 
 (define-module (ice-9 colorized)
   #:use-module (oop goops)
-  #:use-module ((rnrs) #:select (bytevector->u8-list define-record-type 
+  #:use-module ((rnrs) #:select (bytevector->u8-list define-record-type
 				vector-for-each bytevector?))
   #:use-module (ice-9 rdelim)
   #:use-module ((srfi srfi-1) #:select (remove proper-list?))
   #:use-module (system repl common)
-  #:export (activate-colorized custom-colorized-set! class? arbiter? unknown?))
+  #:export (activate-colorized custom-colorized-set! float? fraction? class? arbiter? unknown?))
 
-;; TODO:
-;;     1. rewrite type-checker without GOOPS
-;;     2. add term-color? or write term-color compatible interface
-;;     3. maybe let users define their color scheme in '~/.guile'?
 (define (colorized-repl-printer repl val)
   (colorize-it val))
       
@@ -112,7 +108,7 @@
 	)))
 
 (define (print-dot port)
-  (let ((light-cyan '(CYAN CLEAR ON-BLACK)))
+  (let ((light-cyan '(CYAN BOLD)))
     (display (color-it-inner light-cyan "." '(RESET)) port)))
 
 (define is-sign?
@@ -268,15 +264,17 @@
 (define (color-unknown cs)
   (color-it cs))
 
-(define *custom-colorized-list* '())
+(define *custom-colorized-list* (make-fluid '()))
 (define (custom-colorized-set! ll)
-  (set! *custom-colorized-list* ll))
+  (fluid-set! *custom-colorized-list* ll))
+(define (current-custom-colorized)
+  (fluid-ref *custom-colorized-list*))
 
 (define (float? obj)
-  (is-a? obj <real>))
+  (and (number? obj) (inexact? obj)))
 
 (define (fraction? obj)
-  (is-a? obj <fraction>))
+  (and (number? obj) (exact? obj)))
 
 (define (class? obj)
   (is-a? obj <class>))
@@ -313,6 +311,7 @@
     (,complex? COMPLEX ,color-complex (MAGENTA))
     (,hash-table? HASH-TABLE ,color-hashtable (BLUE))
     (,hook? HOOK ,color-hook (GREEN))
+    (,unknown? UNKNOWN ,color-unknown (WHITE))
     ;; TODO: if there's anything to add
     ))
 
@@ -321,7 +320,7 @@
     (call/cc (lambda (return)
 	       (for-each (lambda (x)  ;; checkout user defined data type
 			   (and ((car x) data) (return (cdr x))))
-			 *custom-colorized-list*)
+			 (current-custom-colorized))
 	       (for-each (lambda (x)  ;; checkout default data type
 			   (and ((car x) data) (return (cdr x))))
 			 *colorize-list*)
