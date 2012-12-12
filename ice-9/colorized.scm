@@ -21,7 +21,8 @@
   #:use-module (ice-9 rdelim)
   #:use-module ((srfi srfi-1) #:select (remove proper-list?))
   #:use-module (system repl common)
-  #:export (activate-colorized custom-colorized-set! float? fraction? class? arbiter? unknown?))
+  #:export (activate-colorized custom-colorized-set! color-it
+	    add-color-scheme! float? fraction? class? arbiter? unknown?))
 
 (define (colorized-repl-printer repl val)
   (colorize-it val))
@@ -264,11 +265,19 @@
 (define (color-unknown cs)
   (color-it cs))
 
+;;--- custom color scheme ---
 (define *custom-colorized-list* (make-fluid '()))
+
 (define (custom-colorized-set! ll)
   (fluid-set! *custom-colorized-list* ll))
+
 (define (current-custom-colorized)
   (fluid-ref *custom-colorized-list*))
+
+(define (add-color-scheme! cs-list)
+  (let ((ll (current-custom-colorized)))
+    (custom-colorized-set! `(,@cs-list ,@ll))))
+;;--- custom color scheme end---
 
 (define (float? obj)
   (and (number? obj) (inexact? obj)))
