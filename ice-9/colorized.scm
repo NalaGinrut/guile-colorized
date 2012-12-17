@@ -21,15 +21,13 @@
   #:use-module (ice-9 rdelim)
   #:use-module ((srfi srfi-1) #:select (remove proper-list?))
   #:use-module (system repl common)
-  #:export (activate-colorized custom-colorized-set! color-it
-	    add-color-scheme! float? fraction? class? arbiter? unknown?))
+  #:export (activate-colorized custom-colorized-set! color-it string-in-color add-color-scheme!))
 
 (define (colorized-repl-printer repl val)
   (colorize-it val))
       
 (define (activate-colorized)
-  (repl-option-set! (car (fluid-ref *repl-stack*))
-		    'print colorized-repl-printer))
+  (repl-default-option-set! 'print colorized-repl-printer))
 
 (define-record-type color-scheme
   (fields str data type color control method))
@@ -204,10 +202,10 @@
 (define (color-record-type cs)
   (color-it cs))
 
-(define (color-float cs)
+(define (color-inexact cs)
   (color-it cs))
 
-(define (color-fraction cs)
+(define (color-exact cs)
   (let* ((data (color-scheme-data cs))
 	 (colors (color-scheme-color cs))
 	 (num-color (car colors))
@@ -279,10 +277,10 @@
     (custom-colorized-set! `(,@cs-list ,@ll))))
 ;;--- custom color scheme end---
 
-(define (float? obj)
+(define (is-inexact? obj)
   (and (number? obj) (inexact? obj)))
 
-(define (fraction? obj)
+(define (is-exact? obj)
   (and (number? obj) (exact? obj)))
 
 (define (class? obj)
@@ -309,8 +307,8 @@
     (,stack? STACK ,color-stack (MAGENTA))
     (,record-type? RECORD-TYPE ,color-record-type (BLACK BOLD))
     ;; We don't check REAL here, since it'll cover FLOAT and FRACTION, but user may customs it as they wish.
-    (,float? FLOAT ,color-float (YELLOW))
-    (,fraction? FRACTION ,color-fraction ((BLUE BOLD) (YELLOW)))
+    (,is-inexact? FLOAT ,color-inexact (YELLOW))
+    (,is-exact? FRACTION ,color-exact ((BLUE BOLD) (YELLOW)))
     (,regexp? REGEXP ,color-regexp (GREEN))
     (,bitvector? BITVECTOR ,color-bitvector (YELLOW BOLD))
     (,bytevector? BYTEVECTOR ,color-bytevector (CYAN))
@@ -333,7 +331,7 @@
 	       (for-each (lambda (x)  ;; checkout default data type
 			   (and ((car x) data) (return (cdr x))))
 			 *colorize-list*)
-	       (return `(UNKNOWN ,color-unknown white)))))) ;; no suitable data type ,return the unknown solution
+	       (return `(UNKNOWN ,color-unknown (WHITE))))))) ;; no suitable data type ,return the unknown solution
 	      
 ;; NOTE: we don't use control now, but I write the mechanism for future usage.
 (define generate-color-scheme
@@ -344,6 +342,17 @@
 	   (method (cadr r))
 	   (color (caddr r)))
       (make-color-scheme str data type color '(RESET) method)))) 
+
+(define generate-custom-string-color-scheme
+  (lambda (str color)
+    (make-color-scheme str #f #f color '(RESET) color-string)))
+
+(define string-in-color
+  (lambda (str color)
+    "@code{string-in-color}.  The argument @var{color} is the color list"
+    (and (not (list? color)) (error string-in-color "color should be a list!" color))
+    (let ((cs (generate-custom-string-color-scheme str color)))
+      (color-it cs))))
 
 (define* (colorize-it data #:optional (port (current-output-port)))
   (colorize data port)
