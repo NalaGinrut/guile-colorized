@@ -21,7 +21,8 @@
   #:use-module (ice-9 rdelim)
   #:use-module ((srfi srfi-1) #:select (remove proper-list?))
   #:use-module (system repl common)
-  #:export (activate-colorized custom-colorized-set! color-it string-in-color add-color-scheme!))
+  #:export (activate-colorized custom-colorized-set! color-it 
+	    string-in-color add-color-scheme! display-in-color))
 
 (define (colorized-repl-printer repl val)
   (colorize-it val))
@@ -349,10 +350,17 @@
 
 (define string-in-color
   (lambda (str color)
-    "@code{string-in-color}.  The argument @var{color} is the color list"
+"@code{string-in-color}.  The argument @var{color} is the color list.
+   Example: (string-in-color \"hello\" '(BLUE BOLD))" 
     (and (not (list? color)) (error string-in-color "color should be a list!" color))
     (let ((cs (generate-custom-string-color-scheme str color)))
       (color-it cs))))
+
+(define display-in-color
+  (lambda (str color)
+"Call @code{display} with the result of  @code{string-in-color}.
+   Example: (display-in-color \"hello\" '(BLUE BOLD))"
+    (display (string-in-color str color))))
 
 (define* (colorize-it data #:optional (port (current-output-port)))
   (colorize data port)
