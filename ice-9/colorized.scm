@@ -14,12 +14,13 @@
 ;;;; License along with this library; if not, write to the Free Software
 ;;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+;;;; Author: Mu Lei known as NalaGinrut <nalaginrut@gmail.com>
+
 (define-module (ice-9 colorized)
-  #:use-module (oop goops)
-  #:use-module ((rnrs) #:select (bytevector->u8-list define-record-type
-				vector-for-each bytevector?))
+  #:use-module (rnrs bytevectors) 
+  #:use-module ((rnrs) #:select (define-record-type vector-for-each))
   #:use-module (ice-9 rdelim)
-  #:use-module ((srfi srfi-1) #:select (remove proper-list?))
+  #:use-module ((srfi srfi-1) #:select (filter-map proper-list?))
   #:use-module (system repl common)
   #:export (activate-colorized custom-colorized-set! color-it 
 	    string-in-color add-color-scheme! display-in-color))
@@ -66,21 +67,24 @@
 
 (define generate-color
   (lambda (colors)
-    (let ((color-list 
-	   (remove not 
-		   (map (lambda (c) (assoc-ref *color-list* c)) colors))))
+    (let ((color-list
+	   (filter-map (lambda (c) (assoc-ref *color-list* c)) colors)))
       (if (null? color-list)
 	  ""
-	   (string-join color-list ";" 'infix)))))
+	  (string-join color-list ";" 'infix)))))
 
-(define color-it
+(define color-it-test
+  (lambda (cs)
+    (color-scheme-str cs)))
+
+(define color-it 
   (lambda (cs)
     (let* ((str (color-scheme-str cs))
 	   (color (color-scheme-color cs))
 	   (control (color-scheme-control cs)))
       (color-it-inner color str control))))
-
-(define color-it-inner
+  
+(define color-it-inner 
   (lambda (color str control)
     (string-append "\x1b[" (generate-color color) "m" str "\x1b[" (generate-color control) "m")))
 
@@ -95,23 +99,24 @@
     (PAIR       .   "(") 
     (VECTOR     .   "#(")
     (BYTEVECTOR .   "#vu8(")
-    (ARRAY      .   #f))) ;; array's sign is complecated.
+    (ARRAY      .   #f))) 
+;; array's sign is complecated, return #f so it will be handled by pre-print
 
 (define* (pre-print cs #:optional (port (current-output-port)))
   (let* ((type (color-scheme-type cs))
 	 (control (color-scheme-control cs))
 	 (sign (assoc-ref *pre-sign* type))
-	 (color (color-scheme-color cs))) ;; (car color) is the color, (cdr color) is the control
+	 (color (color-scheme-color cs))) 
     (if sign
-	(display (color-it-inner color sign control) port)  ;; not array
-	(display (color-array-inner cs) port) ;; array complecated coloring
-	)))
+	(display (color-it-inner color sign control) port)  ; not array
+	;; array complecated coloring
+	(display (color-array-inner cs) port))))
 
 (define (print-dot port)
   (let ((light-cyan '(CYAN BOLD)))
     (display (color-it-inner light-cyan "." '(RESET)) port)))
 
-(define is-sign?
+(define delimiter?
   (lambda (ch)
     (char-set-contains? char-set:punctuation ch)))
 
@@ -127,17 +132,17 @@
       (call-with-output-string
        (lambda (port)
 	 (for-each (lambda (ch)
-		     (let ((color (if (is-sign? ch) sign-color attr-color)))
+		     (let ((color (if (delimiter? ch) sign-color attr-color)))
 		       (display (color-it-inner color (string ch) control) port)))
 		   attrs)
-	 (display (color-it-inner sign-color "(" control) port) ;; output right-parent
-	 )))))
+	 ;; output left-paren
+	 (display (color-it-inner sign-color "(" control) port))))))
 
-;; I believe all end-sign is ")"      
+;; Write a closing parenthesis.
 (define* (post-print cs #:optional (port (current-output-port)))
   (let* ((c (color-scheme-color cs))
 	 (control (color-scheme-control cs))
-	 (color (if (list? (car c)) (car c) c))) ;; array has a color-list
+	 (color (if (list? (car c)) (car c) c))) ; array has a color-list
     (display (color-it-inner color ")" control) port)))
 
 (define (color-integer cs)
@@ -156,7 +161,7 @@
 	 (lambda (port)
 	   (pre-print cs port)
 	   (for-each (lambda (x) (colorize x port) (space port)) data)
-	   (backspace port)  ;; remove the redundant space
+	   (backspace port)  ; remove the redundant space
 	   (post-print cs port)))
 	(color-pair cs))))
     
@@ -184,7 +189,7 @@
      (lambda (port)
        (pre-print cs port)
        (vector-for-each (lambda (x) (colorize x port) (space port)) vv)
-       (backspace port) ;; remove the redundant space
+       (backspace port) ; remove the redundant space
        (post-print cs port)))))
     
 (define (color-keyword cs)
@@ -234,13 +239,10 @@
      (lambda (port)
        (pre-print cs port)
        (for-each (lambda (x) (colorize x port) (space port)) ll)
-       (backspace port) ;; remove the redundant space
+       (backspace port) ; remove the redundant space
        (post-print cs port)))))
 
 (define (color-boolean cs)
-  (color-it cs))
-
-(define (color-arbiter cs)
   (color-it cs))
 
 (define (color-array cs)
@@ -248,8 +250,8 @@
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
-       (for-each (lambda (x) (colorize x port) (space port)) ll) ;; easy life to use list rather than array.
-       (backspace port)  ;; remove the redundant space
+       (for-each (lambda (x) (colorize x port) (space port)) ll) ; easy life to use list rather than array.
+       (backspace port)  ; remove the redundant space
        (post-print cs port)))))
 
 (define (color-complex cs)
@@ -285,20 +287,14 @@
   (and (number? obj) (exact? obj)))
 
 (define (class? obj)
-  (is-a? obj <class>))
-
-(define (arbiter? obj)
-  (is-a? obj <arbiter>))
-
-(define (unknown? obj)
-  (is-a? obj <unknown>))
+  (struct? obj))
 
 (define *colorize-list*
   `((,integer? INTEGER ,color-integer (BLUE BOLD))
     (,char? CHAR ,color-char (YELLOW))
     (,string? STRING ,color-string (RED))
     (,list? LIST ,color-list (BLUE BOLD))
-    (,pair? PAIR ,color-list (BLACK BOLD)) ;; NOTE: proper-list is a <pair>, and cons is <pair> too, so call color-list either.
+    (,pair? PAIR ,color-list (BLACK BOLD)) ; NOTE: proper-list is a <pair>, and cons is <pair> too, so call color-list either.
     (,class? CLASS ,color-class (CYAN BOLD))
     (,procedure? PROCEDURE ,color-procedure (YELLOW BOLD))
     (,vector? VECTOR ,color-vector (MAGENTA BOLD))
@@ -314,31 +310,28 @@
     (,bitvector? BITVECTOR ,color-bitvector (YELLOW BOLD))
     (,bytevector? BYTEVECTOR ,color-bytevector (CYAN))
     (,boolean? BOOLEAN ,color-boolean (BLUE))
-    (,arbiter? ARBITER ,color-arbiter (BLUE))
     (,array? ARRAY ,color-array ((CYAN BOLD) (YELLOW BOLD)))
     (,complex? COMPLEX ,color-complex (MAGENTA))
     (,hash-table? HASH-TABLE ,color-hashtable (BLUE))
-    (,hook? HOOK ,color-hook (GREEN))
-    (,unknown? UNKNOWN ,color-unknown (WHITE))
-    ;; TODO: if there's anything to add
-    ))
+    (,hook? HOOK ,color-hook (GREEN))))
+;; TODO: if there's anything to add
 
-(define type-checker
+(define data->token-color
   (lambda (data)
     (call/cc (lambda (return)
-	       (for-each (lambda (x)  ;; checkout user defined data type
+	       (for-each (lambda (x)  ; checkout user defined data type
 			   (and ((car x) data) (return (cdr x))))
 			 (current-custom-colorized))
-	       (for-each (lambda (x)  ;; checkout default data type
+	       (for-each (lambda (x)  ; checkout default data type
 			   (and ((car x) data) (return (cdr x))))
 			 *colorize-list*)
-	       (return `(UNKNOWN ,color-unknown (WHITE))))))) ;; no suitable data type ,return the unknown solution
+	       (return `(UNKNOWN ,color-unknown (WHITE))))))) ; no suitable data type ,return the unknown solution
 	      
 ;; NOTE: we don't use control now, but I write the mechanism for future usage.
 (define generate-color-scheme
   (lambda (data)
     (let* ((str (object->string data))
-	   (r (type-checker data))
+	   (r (data->token-color data))
 	   (type (car r))
 	   (method (cadr r))
 	   (color (caddr r)))
@@ -350,21 +343,23 @@
 
 (define string-in-color
   (lambda (str color)
-"@code{string-in-color}.  The argument @var{color} is the color list.
-   Example: (string-in-color \"hello\" '(BLUE BOLD))" 
+"Example: (string-in-color \"hello\" '(BLUE BOLD))" 
     (and (not (list? color)) (error string-in-color "color should be a list!" color))
     (let ((cs (generate-custom-string-color-scheme str color)))
       (color-it cs))))
 
 (define display-in-color
   (lambda (str color)
-"Call @code{display} with the result of  @code{string-in-color}.
-   Example: (display-in-color \"hello\" '(BLUE BOLD))"
+"Example: (display-in-color \"hello\" '(BLUE BOLD))"
     (display (string-in-color str color))))
 
 (define* (colorize-it data #:optional (port (current-output-port)))
   (colorize data port)
   (newline port))
+
+(define* (colorize-test data #:optional (port (current-output-port)))
+  (display (color-it-test (generate-color-scheme data)) port)
+  (newline))
 
 (define* (colorize data #:optional (port (current-output-port)))
   (let* ((cs (generate-color-scheme data))
