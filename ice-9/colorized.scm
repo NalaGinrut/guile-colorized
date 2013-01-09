@@ -23,7 +23,8 @@
   #:use-module ((srfi srfi-1) #:select (filter-map proper-list?))
   #:use-module (system repl common)
   #:export (activate-colorized custom-colorized-set! color-it 
-	    string-in-color add-color-scheme! display-in-color))
+	    string-in-color add-color-scheme! display-in-color
+	    enable-color-test disable-color-test))
 
 (define (colorized-repl-printer repl val)
   (colorize-it val))
@@ -73,9 +74,22 @@
 	  ""
 	  (string-join color-list ";" 'infix)))))
 
+(define colorize-the-string
+  (lambda (color str control)
+    (string-append "\x1b[" (generate-color color) "m" str "\x1b[" (generate-color control) "m")))
+
 (define color-it-test
-  (lambda (cs)
-    (color-scheme-str cs)))
+  (lambda (color str control)
+    str))
+
+;; test-helper functions
+;; when eanbled, it won't output colored result, but just normal.
+;; it used to test the array/list/vector print result.
+(define *color-func* (make-fluid colorize-the-string))
+(define (disable-color-test) 
+  (fluid-set! *color-func* colorize-the-string))
+(define (enable-color-test) 
+  (fluid-set! *color-func* color-it-test))
 
 (define color-it 
   (lambda (cs)
@@ -86,7 +100,7 @@
   
 (define color-it-inner 
   (lambda (color str control)
-    (string-append "\x1b[" (generate-color color) "m" str "\x1b[" (generate-color control) "m")))
+    ((fluid-ref *color-func*) color str control)))
 
 (define* (space #:optional (port (current-output-port)))
   (display #\sp port))
@@ -356,10 +370,6 @@
 (define* (colorize-it data #:optional (port (current-output-port)))
   (colorize data port)
   (newline port))
-
-(define* (colorize-test data #:optional (port (current-output-port)))
-  (display (color-it-test (generate-color-scheme data)) port)
-  (newline))
 
 (define* (colorize data #:optional (port (current-output-port)))
   (let* ((cs (generate-color-scheme data))
