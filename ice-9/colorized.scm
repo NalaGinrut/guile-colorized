@@ -17,7 +17,7 @@
 ;;;; Author: Mu Lei known as NalaGinrut <nalaginrut@gmail.com>
 
 (define-module (ice-9 colorized)
-  #:use-module ((rnrs) #:select (define-record-type vector-for-each))
+  #:use-module ((rnrs) #:select (define-record-type))
   #:use-module (ice-9 rdelim)
   #:use-module ((srfi srfi-1) #:select (filter-map any proper-list?))
   #:use-module (system repl common)
@@ -192,13 +192,11 @@
   (color-it cs))
 
 (define (color-vector cs)
-  (let ((vv (color-scheme-data cs)))
+  (let ((ll (vector->list (color-scheme-data cs))))
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
-       (vector-for-each
-	(lambda (x) (display (string-join (map ->cstr x) " ") port))
-	vv)
+       (display (string-join (map ->cstr ll) " ") port)
        (post-print cs port)))))
     
 (define (color-keyword cs)
