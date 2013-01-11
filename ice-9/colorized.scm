@@ -153,12 +153,6 @@
 	 (control (color-scheme-control cs))
 	 (color (if (list? (car c)) (car c) c))) ; array has a color-list
     (display (color-it-inner color ")" control) port)))
-
-(define list-color-loop
-  (lambda (ll port)
-    (cond 
-     ((null? (cdr ll)) (colorize (car ll) port))
-     (else (space port) (list-color-loop (cdr ll) port)))))
       
 (define (color-integer cs)
   (color-it cs))
