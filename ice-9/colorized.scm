@@ -17,9 +17,9 @@
 ;;;; Author: Mu Lei known as NalaGinrut <nalaginrut@gmail.com>
 
 (define-module (ice-9 colorized)
-  #:use-module ((rnrs) #:select (define-record-type))
   #:use-module (ice-9 rdelim)
   #:use-module ((srfi srfi-1) #:select (filter-map any proper-list?))
+  #:use-module (srfi srfi-9)
   #:use-module (system repl common)
   #:export (activate-colorized custom-colorized-set! color-it colorize-it colorize
 	    colorize-string colorized-display add-color-scheme! display-in-color))
@@ -28,10 +28,20 @@
   (colorize-it val))
       
 (define (activate-colorized)
-  (repl-default-option-set! 'print colorized-repl-printer))
+  (let ((rs (fluid-ref *repl-stack*)))
+    (if (null? rs)
+	(repl-default-option-set! 'print colorized-repl-printer) ; if no REPL started, set as default printer
+	(repl-option-set! (car rs) 'print colorized-repl-printer)))) ; or set as the top-REPL printer
 
+;; color-scheme context, contains some info to be used
 (define-record-type color-scheme
-  (fields data type color control method))
+  (make-color-scheme obj type color control method)
+  color-scheme?
+  (obj color-scheme-obj) ; the obj to be colored
+  (type color-scheme-type) ; the obj type (for debug/test)
+  (color color-scheme-color) ; the color
+  (control color-scheme-control) ; ansi control code
+  (method color-scheme-method)) ; colorized method for the obj type
   
 (define *color-list*
   `((CLEAR       .   "0")
@@ -60,25 +70,20 @@
     (ON-CYAN     .  "46")
     (ON-WHITE    .  "47")))
 
-(define get-color
-  (lambda (color)
-    (assoc-ref *color-list* color)))
+(define (get-color color)
+  (assoc-ref *color-list* color))
 
-(define generate-color
-  (lambda (colors)
-    (let ((color-list
-	   (filter-map (lambda (c) (assoc-ref *color-list* c)) colors)))
-      (if (null? color-list)
-	  ""
-	  (string-join color-list ";" 'infix)))))
+(define (generate-color colors)
+  (let ((color-list
+	 (filter-map (lambda (c) (assoc-ref *color-list* c)) colors)))
+    (if (null? color-list)
+	""
+	(string-append "\x1b[" (string-join color-list ";" 'infix) "m"))))
 
-(define colorize-the-string
-  (lambda (color str control)
-    (string-append "\x1b[" (generate-color color) "m" str "\x1b[" (generate-color control) "m")))
+(define (colorize-the-string color str control)
+  (string-append (generate-color color) str (generate-color control)))
 
-(define color-it-test
-  (lambda (color str control)
-    str))
+(define (color-it-test color str control) str)
 
 ;; test-helper functions
 ;; when eanbled, it won't output colored result, but just normal.
@@ -89,17 +94,15 @@
 (define (enable-color-test) 
   (fluid-set! *color-func* color-it-test))
 
-(define color-it 
-  (lambda (cs)
-    (let* ((data (color-scheme-data cs))
-	   (str (object->string data))
-	   (color (color-scheme-color cs))
-	   (control (color-scheme-control cs)))
-      (color-it-inner color str control))))
+(define (color-it cs) 
+  (let* ((obj (color-scheme-obj cs))
+	 (str (object->string obj))
+	 (color (color-scheme-color cs))
+	 (control (color-scheme-control cs)))
+    (color-it-inner color str control)))
   
-(define color-it-inner 
-  (lambda (color str control)
-    ((fluid-ref *color-func*) color str control)))
+(define (color-it-inner color str control)
+  ((fluid-ref *color-func*) color str control))
 
 (define* (space #:optional (port (current-output-port)))
   (display #\sp port))
@@ -125,27 +128,25 @@
   (let ((light-cyan '(CYAN BOLD)))
     (display (color-it-inner light-cyan "." '(RESET)) port)))
 
-(define delimiter?
-  (lambda (ch)
-    (char-set-contains? char-set:punctuation ch)))
+(define (delimiter? ch)
+  (char-set-contains? char-set:punctuation ch))
 
-(define color-array-inner
-  (lambda (cs)
-    (let* ((colors (color-scheme-color cs))
-	   (control (color-scheme-control cs))
-	   (sign-color (car colors))
-	   (attr-color (cadr colors))
-	   (str (object->string (color-scheme-data cs)))
-	   (attrs (string->list 
-		   (call-with-input-string str (lambda (p) (read-delimited "(" p))))))
-      (call-with-output-string
-       (lambda (port)
-	 (for-each (lambda (ch)
-		     (let ((color (if (delimiter? ch) sign-color attr-color)))
-		       (display (color-it-inner color (string ch) control) port)))
-		   attrs)
-	 ;; output left-paren
-	 (display (color-it-inner sign-color "(" control) port))))))
+(define (color-array-inner cs)
+  (let* ((colors (color-scheme-color cs))
+	 (control (color-scheme-control cs))
+	 (sign-color (car colors))
+	 (attr-color (cadr colors))
+	 (str (object->string (color-scheme-obj cs)))
+	 (attrs (string->list 
+		 (call-with-input-string str (lambda (p) (read-delimited "(" p))))))
+    (call-with-output-string
+     (lambda (port)
+       (for-each (lambda (ch)
+		   (let ((color (if (delimiter? ch) sign-color attr-color)))
+		     (display (color-it-inner color (string ch) control) port)))
+		 attrs)
+       ;; output left-paren
+       (display (color-it-inner sign-color "(" control) port)))))
 
 ;; Write a closing parenthesis.
 (define* (post-print cs #:optional (port (current-output-port)))
@@ -164,19 +165,19 @@
   (color-it cs))
 
 (define (color-list cs)
-  (let* ((data (color-scheme-data cs)))
-    (if (proper-list? data)
+  (let* ((obj (color-scheme-obj cs)))
+    (if (proper-list? obj)
 	(call-with-output-string
 	 (lambda (port)
 	   (pre-print cs port)
-	   (display (string-join (map ->cstr data) " ") port)
+	   (display (string-join (map ->cstr obj) " ") port)
 	   (post-print cs port)))
 	(color-pair cs))))
     
 (define (color-pair cs)
-  (let* ((data (color-scheme-data cs))
-	 (d1 (car data))
-	 (d2 (cdr data)))
+  (let* ((obj (color-scheme-obj cs))
+	 (d1 (car obj))
+	 (d2 (cdr obj)))
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
@@ -192,7 +193,7 @@
   (color-it cs))
 
 (define (color-vector cs)
-  (let ((ll (vector->list (color-scheme-data cs))))
+  (let ((ll (vector->list (color-scheme-obj cs))))
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
@@ -219,13 +220,13 @@
   (color-it cs))
 
 (define (color-exact cs)
-  (let* ((data (color-scheme-data cs))
+  (let* ((obj (color-scheme-obj cs))
 	 (colors (color-scheme-color cs))
 	 (num-color (car colors))
 	 (div-color (cadr colors))
 	 (control (color-scheme-control cs))
-	 (n (object->string (numerator data)))
-	 (d (object->string (denominator data))))
+	 (n (object->string (numerator obj)))
+	 (d (object->string (denominator obj))))
     (call-with-output-string
      (lambda (port)
        (format port "~a~a~a" 
@@ -244,7 +245,7 @@
   (color-it cs))
 
 (define (color-array cs)
-  (let ((ll (array->list (color-scheme-data cs))))
+  (let ((ll (array->list (color-scheme-obj cs))))
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
@@ -283,6 +284,7 @@
 (define (is-exact? obj)
   (and (number? obj) (exact? obj)))
 
+;; A class is a struct.
 (define (class? obj)
   (struct? obj))
 
@@ -312,49 +314,42 @@
     (,hook? HOOK ,color-hook (GREEN))))
 ;; TODO: if there's anything to add
 
-(define data->token-color
-  (lambda (data)
-    (let ((proc (lambda (x) (and ((car x) data) (cdr x)))))
-      (or (any proc (current-custom-colorized)) ; checkout user defined data type
-	  (any proc *colorize-list*) ; checkout default data type
-	  `(UNKNOWN ,color-unknown (WHITE)))))) ; no suitable data type ,return the unknown solution
-	      
+(define (obj->token-color obj)
+  (let ((proc (lambda (x) (and ((car x) obj) (cdr x)))))
+    (or (any proc (current-custom-colorized)) ; checkout user defined obj type
+	(any proc *colorize-list*) ; checkout default obj type
+	`(UNKNOWN ,color-unknown (WHITE))))) ; no suitable obj type ,return the unknown solution
+
 ;; NOTE: we don't use control now, but I write the mechanism for future usage.
-(define generate-color-scheme
-  (lambda (data)
-    (let* ((r (data->token-color data))
-	   (type (car r))
-	   (method (cadr r))
-	   (color (caddr r)))
-      (make-color-scheme data type color '(RESET) method)))) 
+(define (generate-color-scheme obj)
+  (let* ((r (obj->token-color obj))
+	 (type (car r))
+	 (method (cadr r))
+	 (color (caddr r)))
+    (make-color-scheme obj type color '(RESET) method)))
 
-(define generate-custom-string-color-scheme
-  (lambda (str color)
-    (make-color-scheme str #f color '(RESET) color-string)))
+(define (generate-custom-string-color-scheme str color)
+  (make-color-scheme str #f color '(RESET) color-string))
 
-(define colorize-string
-  (lambda (str color)
-    "Example: (colorize-string \"hello\" '(BLUE BOLD))" 
-    (and (not (list? color)) (error colorize-string "color should be a list!" color))
-    (colorize-the-string color str '(RESET))))
+(define (colorize-string str color)
+  "Example: (colorize-string \"hello\" '(BLUE BOLD))" 
+  (and (not (list? color)) (error colorize-string "color should be a list!" color))
+  (colorize-the-string color str '(RESET)))
 
-(define colorized-display
-  (lambda (str color)
-    "Example: (colorized-display \"hello\" '(BLUE BOLD))"
-    (display (colorize-string str color))))
+(define (colorized-display str color)
+  "Example: (colorized-display \"hello\" '(BLUE BOLD))"
+  (display (colorize-string str color)))
 
-(define* (colorize-it data #:optional (port (current-output-port)))
-  (colorize data port)
+(define* (colorize-it obj #:optional (port (current-output-port)))
+  (colorize obj port)
   (newline port))
 
-(define* (colorize data #:optional (port (current-output-port)))
-  (let* ((cs (generate-color-scheme data))
+(define* (colorize obj #:optional (port (current-output-port)))
+  (let* ((cs (generate-color-scheme obj))
 	 (f (color-scheme-method cs)))
     (display (f cs) port)))
 
-(define (->cstr data)
+(define (->cstr obj)
   (call-with-output-string
    (lambda (port)
-     (colorize data port))))
-
-
+     (colorize obj port))))
