@@ -1,0 +1,108 @@
+;;;; colorized.test --- test (ice-9 colorized) module -*- scheme -*-
+;;;; 
+;;;; Copyright 2012 Free Software Foundation, Inc.
+;;;; 
+;;;; This library is free software; you can redistribute it and/or
+;;;; modify it under the terms of the GNU Lesser General Public
+;;;; License as published by the Free Software Foundation; either
+;;;; version 3 of the License, or (at your option) any later version.
+;;;; 
+;;;; This library is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;;;; Lesser General Public License for more details.
+;;;; 
+;;;; You should have received a copy of the GNU Lesser General Public
+;;;; License along with this library; if not, write to the Free Software
+;;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+
+(define-module (test-suite test-ice-9-colorized)
+  #:use-module (test-suite lib)
+  #:use-module (oop goops)
+  #:use-module (srfi srfi-9)
+  #:use-module (ice-9 colorized))
+
+;; enable colorized-REPL test printer
+((@@ (ice-9 colorized) enable-color-test))
+
+;;;
+;;; colorzed object test
+;;;
+
+(define (test-me obj)
+  (pass-if "OK" 
+           (equal? (call-with-output-string
+                    (lambda (port) (colorize obj port)))
+                   (object->string obj))))
+
+(with-test-prefix "colorized object tests"
+
+  (with-test-prefix "integer"
+    (test-me 123))
+
+  (with-test-prefix "char"
+    (test-me #\c))
+
+  (with-test-prefix "string"
+    (test-me "hello world\n"))
+
+  (with-test-prefix "list"
+    (test-me '(1 2 3 4 5)))
+
+  (with-test-prefix "pair"
+    (test-me (cons 1 2)))
+
+  (with-test-prefix "class"
+    (test-me <integer>))
+
+  (with-test-prefix "procedure"
+    (test-me +))
+
+  (with-test-prefix "vector"
+    (test-me (vector 1 2 3)))
+
+  (with-test-prefix "keyword"
+    (test-me #:test-me))
+
+  (with-test-prefix "char-set"
+    (test-me char-set:ascii))
+
+  (with-test-prefix "symbol"
+    (test-me 'test-me))
+
+  (with-test-prefix "stack"
+    (test-me (make-stack #t)))
+
+  (with-test-prefix "record-type"
+    (define-record-type aaa (make-aaa a) aaa? (a a))
+    (test-me aaa))
+
+  (with-test-prefix "inexact"
+    (test-me 1.2))
+
+  (with-test-prefix "exact"
+    (test-me 1/2))
+
+  (with-test-prefix "regexp"
+    (test-me (make-regexp "[0-9]*")))
+
+  (with-test-prefix "bitvector"
+    (test-me (make-bitvector 8)))
+
+  (with-test-prefix "array"
+    (test-me #2u32@2@3((1 2) (3 4))))
+
+  (with-test-prefix "boolean"
+    (test-me #f)
+    (test-me #t))
+
+  (with-test-prefix "complex"
+    (test-me 3+4i))
+
+  (with-test-prefix "hash table"
+    (test-me (make-hash-table)))
+
+  (with-test-prefix "hook"
+    (test-me (make-hook))))
+
+  
