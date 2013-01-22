@@ -1,0 +1,178 @@
+From 4e4acbe884716b0c84f1c39bc054244112daf17d Mon Sep 17 00:00:00 2001
+From: Nala Ginrut <nalaginrut@gmail.com>
+Date: Tue, 22 Jan 2013 19:02:06 +0800
+Subject: [PATCH] Update manual for (ice-9 colorized).
+
+* doc/ref/misc-modules.texi: Add (ice-9 colorized).
+
+* doc/ref/scheme-using.texi: Add colorized REPL usage.
+---
+ doc/ref/misc-modules.texi |   91 +++++++++++++++++++++++++++++++++++++++++++++
+ doc/ref/scheme-using.texi |   35 ++++++++++++++++-
+ 2 files changed, 125 insertions(+), 1 deletion(-)
+
+diff --git a/doc/ref/misc-modules.texi b/doc/ref/misc-modules.texi
+index cf1e0e4..770f354 100644
+--- a/doc/ref/misc-modules.texi
++++ b/doc/ref/misc-modules.texi
+@@ -1789,6 +1789,97 @@ example with the Scheme @code{read} function (@pxref{Scheme Read}),
+ @end deffn
+ 
+ 
++@node Colorized
++@section Colorized
++
++@cindex Colorized
++The module @code{(ice-9 colorized)} provides the procedure
++@code{activate-colorized}, which provides colored REPL output.
++
++The module is loaded and activated by entering the following:
++
++@lisp
++(use-modules (ice-9 colorized))
++(activate-colorized)
++@end lisp
++
++And you may add your own color scheme with @code{add-color-scheme!}:
++
++@lisp
++(add-color-scheme! `((,(lambda (data) 
++                         (and (number? data) (> data 10000)))
++                          MY-LONG-NUM ,color-it (RED))))
++@print{}
++Result: 10001 (in red color)
++@end lisp
++
++@deffn {Scheme Procedure} activate-colorized
++Activate colorized REPL.
++@end deffn
++
++@deffn {Scheme Procedure} add-color-scheme! color-scheme-list
++Add user defined color scheme. @code{color-scheme-list} consisted as:
++@lisp
++(list (pred scheme-name color-method color-list)
++      ;; other color scheme) 
++@end lisp
++While @code{pred} is the predicate to checkout if it's the type you need,
++@code{scheme-name} is a symbol you named this color scheme, 
++@code{color-method} is the color function, and it could be @code{color-it}
++in default, and @code{color-list} is a ansi-color specific color list.
++@end deffn
++
++@cindex Colorized String
++Also exported by the @code{(ice-9 colorized)} module is
++@code{colorize-string}, a procedure to format a string in certain color.
++
++@lisp
++(use-modules (ice-9 colorized))
++(colorize-display "hello" '(BLUE BOLD))
++@print{} hello (in blue color and bold style)
++(colorize-string "hello" '(BLUE BOLD))
++@print{} "\x1b[32;1mhello\x1b[0m"
++(display (colorize-string "hello" '(BLUE BOLD)))
++@print{} hello (in blue color and bold style)
++@end lisp
++
++@deffn {Scheme Procedure} colorize-string str color
++Return a string formated with @var{str} in @var{color} according to ansi
++color specific.  
++@end deffn
++
++@deffn {Scheme Procedure} colorize-display str color
++Print @var{str} in @var{color}.
++@end deffn
++
++Here is the available colors:
++CLEAR,
++RESET,
++BOLD,
++DARK,
++UNDERLINE, 
++UNDERSCORE,
++BLINK,     
++REVERSE,   
++CONCEALED, 
++BLACK,
++RED,       
++GREEN,     
++YELLOW,    
++BLUE,      
++MAGENTA,   
++CYAN,      
++WHITE,     
++ON-BLACK,  
++ON-RED,    
++ON-GREEN,  
++ON-YELLOW, 
++ON-BLUE,   
++ON-MAGENTA,
++ON-CYAN, 
++ON-WHITE
++
++
+ @c Local Variables:
+ @c TeX-master: "guile.texi"
+ @c End:
+diff --git a/doc/ref/scheme-using.texi b/doc/ref/scheme-using.texi
+index e0f91af..fe302c2 100644
+--- a/doc/ref/scheme-using.texi
++++ b/doc/ref/scheme-using.texi
+@@ -37,6 +37,7 @@ support for languages other than Scheme.
+ @menu
+ * Init File::
+ * Readline::                    
++* Colorized REPL::
+ * Value History::              
+ * REPL Commands::               
+ * Error Handling::              
+@@ -79,6 +80,37 @@ It's a good idea to put these two lines (without the
+ @xref{Init File}, for more on @file{.guile}.
+ 
+ 
++@node Colorized REPL
++@subsection Colorized REPL
++
++To make colorized result in Guile REPL, or add your own color
++schemes to show the result in colors.
++
++@lisp
++scheme@@(guile-user)> (use-modules (ice-9 colorized))
++scheme@@(guile-user)> (activate-colorized)
++@end lisp
++
++It's a good idea to put these two lines (without the
++@code{scheme@@(guile-user)>} prompts) in your @file{.guile} file.
++Besides, you may add your color schemes for the result:
++@lisp
++(add-color-scheme! (list (pred scheme-name color-method color-list)))
++example:
++(add-color-scheme! `((,(lambda (data) 
++                         (and (number? data) (> data 10000)))
++                          MY-LONG-NUM ,color-it (RED))))
++10001
++@print{} 10001 (in red color)
++@end lisp
++While @code{pred} is the predicate to checkout if it's the type you need,
++@code{scheme-name} is a symbol you named this color scheme, 
++@code{color-method} is the color function, and it could be @code{color-it}
++in default, and @code{color-list} is a ansi-color specific color list, 
++please see @xref{Colorized}.
++@xref{Init File}, for more on @file{.guile}.
++
++
+ @node Value History
+ @subsection Value History
+ 
+@@ -147,7 +179,8 @@ data structure or closure, they may then be reclaimed by the garbage collector.
+ 
+ @cindex commands
+ The REPL exists to read expressions, evaluate them, and then print their
+-results. But sometimes one wants to tell the REPL to evaluate an
++results. But sometimes o
++ne wants to tell the REPL to evaluate an
+ expression in a different way, or to do something else altogether. A
+ user can affect the way the REPL works with a @dfn{REPL command}.
+ 
+-- 
+1.7.10.4
+

@@ -22,7 +22,7 @@
   #:use-module (srfi srfi-9)
   #:use-module (system repl common)
   #:export (activate-colorized custom-colorized-set! color-it colorize-it colorize
-	    colorize-string colorized-display add-color-scheme! display-in-color))
+	    colorize-string colorized-display add-color-scheme!))
 
 (define (colorized-repl-printer repl val)
   (colorize-it val))
