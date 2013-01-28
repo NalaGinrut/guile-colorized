@@ -1,4 +1,4 @@
-;; Copyright (C) 2012 Free Software Foundation, Inc.
+;; Copyright (C) 2013 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -22,11 +22,11 @@
   #:use-module (srfi srfi-9)
   #:use-module (system repl common)
   #:export (activate-colorized custom-colorized-set! color-it colorize-it colorize
-	    colorize-string colorized-display add-color-scheme!))
+            color-func colorize-string colorized-display add-color-scheme!))
 
 (define (colorized-repl-printer repl val)
   (colorize-it val))
-      
+
 (define (activate-colorized)
   (let ((rs (fluid-ref *repl-stack*)))
     (if (null? rs)
@@ -42,7 +42,7 @@
   (color color-scheme-color) ; the color
   (control color-scheme-control) ; ansi control code
   (method color-scheme-method)) ; colorized method for the obj type
-  
+
 (define *color-list*
   `((CLEAR       .   "0")
     (RESET       .   "0")
@@ -71,38 +71,32 @@
     (ON-WHITE    .  "47")))
 
 (define (get-color color)
-  (assoc-ref *color-list* color))
+  (assq-ref *color-list* color))
 
 (define (generate-color colors)
   (let ((color-list
-	 (filter-map (lambda (c) (assoc-ref *color-list* c)) colors)))
+         (filter-map get-color colors)))
     (if (null? color-list)
-	""
-	(string-append "\x1b[" (string-join color-list ";" 'infix) "m"))))
+        ""
+        (string-append "\x1b[" (string-join color-list ";" 'infix) "m"))))
 
-(define (colorize-the-string color str control)
+(define (colorize-string-helper color str control)
   (string-append (generate-color color) str (generate-color control)))
-
-(define (color-it-test color str control) str)
 
 ;; test-helper functions
 ;; when eanbled, it won't output colored result, but just normal.
 ;; it used to test the array/list/vector print result.
-(define *color-func* (make-fluid colorize-the-string))
-(define (disable-color-test) 
-  (fluid-set! *color-func* colorize-the-string))
-(define (enable-color-test) 
-  (fluid-set! *color-func* color-it-test))
+(define color-func (make-parameter colorize-string-helper))
 
 (define (color-it cs) 
   (let* ((obj (color-scheme-obj cs))
-	 (str (object->string obj))
-	 (color (color-scheme-color cs))
-	 (control (color-scheme-control cs)))
+         (str (object->string obj))
+         (color (color-scheme-color cs))
+         (control (color-scheme-control cs)))
     (color-it-inner color str control)))
-  
+
 (define (color-it-inner color str control)
-  ((fluid-ref *color-func*) color str control))
+  ((color-func) color str control))
 
 (define* (space #:optional (port (current-output-port)))
   (display #\sp port))
@@ -112,17 +106,17 @@
     (PAIR       .   "(") 
     (VECTOR     .   "#(")
     (ARRAY      .   #f))) 
-;; array's sign is complecated, return #f so it will be handled by pre-print
+;; array's sign is complicated, return #f so it will be handled by pre-print
 
 (define* (pre-print cs #:optional (port (current-output-port)))
   (let* ((type (color-scheme-type cs))
-	 (control (color-scheme-control cs))
-	 (sign (assoc-ref *pre-sign* type))
-	 (color (color-scheme-color cs))) 
+         (control (color-scheme-control cs))
+         (sign (assq-ref *pre-sign* type))
+         (color (color-scheme-color cs))) 
     (if sign
-	(display (color-it-inner color sign control) port)  ; not array
-	;; array complecated coloring
-	(display (color-array-inner cs) port))))
+        (display (color-it-inner color sign control) port)  ; not array
+        ;; array complecated coloring
+        (display (color-array-inner cs) port))))
 
 (define (print-dot port)
   (let ((light-cyan '(CYAN BOLD)))
@@ -133,28 +127,28 @@
 
 (define (color-array-inner cs)
   (let* ((colors (color-scheme-color cs))
-	 (control (color-scheme-control cs))
-	 (sign-color (car colors))
-	 (attr-color (cadr colors))
-	 (str (object->string (color-scheme-obj cs)))
-	 (attrs (string->list 
-		 (call-with-input-string str (lambda (p) (read-delimited "(" p))))))
+         (control (color-scheme-control cs))
+         (sign-color (car colors))
+         (attr-color (cadr colors))
+         (str (object->string (color-scheme-obj cs)))
+         (attrs (string->list 
+                 (call-with-input-string str (lambda (p) (read-delimited "(" p))))))
     (call-with-output-string
      (lambda (port)
        (for-each (lambda (ch)
-		   (let ((color (if (delimiter? ch) sign-color attr-color)))
-		     (display (color-it-inner color (string ch) control) port)))
-		 attrs)
+                   (let ((color (if (delimiter? ch) sign-color attr-color)))
+                     (display (color-it-inner color (string ch) control) port)))
+                 attrs)
        ;; output left-paren
        (display (color-it-inner sign-color "(" control) port)))))
 
 ;; Write a closing parenthesis.
 (define* (post-print cs #:optional (port (current-output-port)))
   (let* ((c (color-scheme-color cs))
-	 (control (color-scheme-control cs))
-	 (color (if (list? (car c)) (car c) c))) ; array has a color-list
+         (control (color-scheme-control cs))
+         (color (if (list? (car c)) (car c) c))) ; array has a color-list
     (display (color-it-inner color ")" control) port)))
-      
+
 (define (color-integer cs)
   (color-it cs))
 
@@ -167,17 +161,17 @@
 (define (color-list cs)
   (let* ((obj (color-scheme-obj cs)))
     (if (proper-list? obj)
-	(call-with-output-string
-	 (lambda (port)
-	   (pre-print cs port)
-	   (display (string-join (map ->cstr obj) " ") port)
-	   (post-print cs port)))
-	(color-pair cs))))
-    
+        (call-with-output-string
+         (lambda (port)
+           (pre-print cs port)
+           (display (string-join (map ->cstr obj) " ") port)
+           (post-print cs port)))
+        (color-pair cs))))
+
 (define (color-pair cs)
   (let* ((obj (color-scheme-obj cs))
-	 (d1 (car obj))
-	 (d2 (cdr obj)))
+         (d1 (car obj))
+         (d2 (cdr obj)))
     (call-with-output-string
      (lambda (port)
        (pre-print cs port)
@@ -199,7 +193,7 @@
        (pre-print cs port)
        (display (string-join (map ->cstr ll) " ") port)
        (post-print cs port)))))
-    
+
 (define (color-keyword cs)
   (color-it cs))
 
@@ -221,18 +215,18 @@
 
 (define (color-exact cs)
   (let* ((obj (color-scheme-obj cs))
-	 (colors (color-scheme-color cs))
-	 (num-color (car colors))
-	 (div-color (cadr colors))
-	 (control (color-scheme-control cs))
-	 (n (object->string (numerator obj)))
-	 (d (object->string (denominator obj))))
+         (colors (color-scheme-color cs))
+         (num-color (car colors))
+         (div-color (cadr colors))
+         (control (color-scheme-control cs))
+         (n (object->string (numerator obj)))
+         (d (object->string (denominator obj))))
     (call-with-output-string
      (lambda (port)
        (format port "~a~a~a" 
-	       (color-it-inner num-color n control)
-	       (color-it-inner div-color "/" control)
-	       (color-it-inner num-color d control))))))
+               (color-it-inner num-color n control)
+               (color-it-inner div-color "/" control)
+               (color-it-inner num-color d control))))))
 
 (define (color-regexp cs)
   (color-it cs))
@@ -317,15 +311,15 @@
 (define (obj->token-color obj)
   (let ((proc (lambda (x) (and ((car x) obj) (cdr x)))))
     (or (any proc (current-custom-colorized)) ; checkout user defined obj type
-	(any proc *colorize-list*) ; checkout default obj type
-	`(UNKNOWN ,color-unknown (WHITE))))) ; no suitable obj type ,return the unknown solution
+        (any proc *colorize-list*) ; checkout default obj type
+        `(UNKNOWN ,color-unknown (WHITE))))) ; no suitable obj type ,return the unknown solution
 
 ;; NOTE: we don't use control now, but I write the mechanism for future usage.
 (define (generate-color-scheme obj)
   (let* ((r (obj->token-color obj))
-	 (type (car r))
-	 (method (cadr r))
-	 (color (caddr r)))
+         (type (car r))
+         (method (cadr r))
+         (color (caddr r)))
     (make-color-scheme obj type color '(RESET) method)))
 
 (define (generate-custom-string-color-scheme str color)
@@ -334,7 +328,7 @@
 (define (colorize-string str color)
   "Example: (colorize-string \"hello\" '(BLUE BOLD))" 
   (and (not (list? color)) (error colorize-string "color should be a list!" color))
-  (colorize-the-string color str '(RESET)))
+  (colorize-string-helper color str '(RESET)))
 
 (define (colorized-display str color)
   "Example: (colorized-display \"hello\" '(BLUE BOLD))"
@@ -346,7 +340,7 @@
 
 (define* (colorize obj #:optional (port (current-output-port)))
   (let* ((cs (generate-color-scheme obj))
-	 (f (color-scheme-method cs)))
+         (f (color-scheme-method cs)))
     (display (f cs) port)))
 
 (define (->cstr obj)
