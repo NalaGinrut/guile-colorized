@@ -102,8 +102,8 @@
   (display #\sp port))
 
 (define *pre-sign* 
-  `((LIST       .   "(") 
-    (PAIR       .   "(") 
+  `((LIST       .   "(")
+    (PAIR       .   "(")
     (VECTOR     .   "#(")
     (ARRAY      .   #f))) 
 ;; array's sign is complicated, return #f so it will be handled by pre-print
@@ -112,7 +112,7 @@
   (let* ((type (color-scheme-type cs))
          (control (color-scheme-control cs))
          (sign (assq-ref *pre-sign* type))
-         (color (color-scheme-color cs))) 
+         (color (color-scheme-color cs)))
     (if sign
         (display (color-it-inner color sign control) port)  ; not array
         ;; array complecated coloring
@@ -160,25 +160,44 @@
 
 (define (color-list cs)
   (let* ((obj (color-scheme-obj cs)))
-    (if (proper-list? obj)
-        (call-with-output-string
-         (lambda (port)
-           (pre-print cs port)
-           (display (string-join (map ->cstr obj) " ") port)
-           (post-print cs port)))
-        (color-pair cs))))
+    (call-with-output-string
+     (lambda (port)
+       (pre-print cs port)
+       (display (string-join (map ->cstr obj) " ") port)
+       (post-print cs port)))))
+
+(define lpair (make-parameter #f))
+(define (color-long-pair obj port)
+  (let ((d1 (car obj))
+        (d2 (cdr obj)))
+    (colorize d1 port)
+    (space port)
+    (colorize d2 port)))
 
 (define (color-pair cs)
   (let* ((obj (color-scheme-obj cs))
          (d1 (car obj))
          (d2 (cdr obj)))
-    (call-with-output-string
-     (lambda (port)
-       (pre-print cs port)
-       (colorize d1 port)
-       (space port) (print-dot port) (space port)
-       (colorize d2 port)
-       (post-print cs port)))))
+  (call-with-output-string
+   (lambda (port)
+     (and (not (lpair)) (pre-print cs port))
+     (colorize d1 port)
+     (space port)
+     (cond
+      ((long-pair? obj)
+       (parameterize ((lpair #t))
+         (if (long-pair? d2)
+             (color-long-pair d2 port)
+             (colorize d2 port))))
+      ((and (lpair) (not (long-pair? d2)))
+       ;; cdr is not long-pair anymore, but it's in a long-pair, should be a end pair
+       (parameterize ((lpair #f))
+         (print-dot port) (space port)
+         (colorize d2 port)))
+      (else
+       (print-dot port)(space port)
+       (colorize d2 port)))
+     (and (not (lpair)) (post-print cs port))))))
 
 (define (color-class cs)
   (color-it cs))
@@ -282,12 +301,19 @@
 (define (class? obj)
   (struct? obj))
 
+;; a pair whose cdr is a pair too is long pair, say, '(a b . c)
+;; NOTE: only defined in this project, not a standard type
+(define (long-pair? obj)
+  (and (pair? obj)
+       (or (pair? (cdr obj)) (null? (cdr obj)))))
+
 (define *colorize-list*
   `((,integer? INTEGER ,color-integer (BLUE BOLD))
     (,char? CHAR ,color-char (YELLOW))
     (,string? STRING ,color-string (RED))
-    (,list? LIST ,color-list (BLUE BOLD))
-    (,pair? PAIR ,color-list (BLACK BOLD)) ; NOTE: proper-list is a <pair>, and cons is <pair> too, so call color-list either.
+    (,proper-list? LIST ,color-list (BLUE BOLD))
+    ;; NOTE: proper-list is a <pair>, and cons is <pair> too, so we put list checker before pair
+    (,pair? PAIR ,color-pair (BLACK BOLD))
     (,class? CLASS ,color-class (CYAN BOLD))
     (,procedure? PROCEDURE ,color-procedure (YELLOW BOLD))
     (,vector? VECTOR ,color-vector (MAGENTA BOLD))
