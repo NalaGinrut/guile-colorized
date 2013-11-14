@@ -22,7 +22,8 @@
   #:use-module (srfi srfi-9)
   #:use-module (system repl common)
   #:export (activate-colorized custom-colorized-set! color-it colorize-it colorize
-            color-func colorize-string colorized-display add-color-scheme!))
+            color-func colorize-string colorized-display add-color-scheme!
+            show-all-colors))
 
 (define (colorized-repl-printer repl val)
   (colorize-it val))
@@ -69,6 +70,11 @@
     (ON-MAGENTA  .  "45")
     (ON-CYAN     .  "46")
     (ON-WHITE    .  "47")))
+
+(define (show-all-colors)
+  (for-each (lambda (c)
+              (format #t "~a~%" (car c)))
+            *color-list*))
 
 (define (get-color color)
   (assq-ref *color-list* color))

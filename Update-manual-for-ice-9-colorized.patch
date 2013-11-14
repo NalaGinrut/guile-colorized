@@ -1,23 +1,20 @@
-From 4e4acbe884716b0c84f1c39bc054244112daf17d Mon Sep 17 00:00:00 2001
-From: Nala Ginrut <nalaginrut@gmail.com>
-Date: Tue, 22 Jan 2013 19:02:06 +0800
-Subject: [PATCH] Update manual for (ice-9 colorized).
+From 17a859465e648a79eadcab1fdca2b937489353c4 Mon Sep 17 00:00:00 2001
+From: NalaGinrut <nalaginrut@gmail.com>
+Date: Thu, 31 Jan 2013 22:17:25 +0800
+Subject: [PATCH] Update colorized REPL manual
 
-* doc/ref/misc-modules.texi: Add (ice-9 colorized).
-
-* doc/ref/scheme-using.texi: Add colorized REPL usage.
 ---
- doc/ref/misc-modules.texi |   91 +++++++++++++++++++++++++++++++++++++++++++++
- doc/ref/scheme-using.texi |   35 ++++++++++++++++-
- 2 files changed, 125 insertions(+), 1 deletion(-)
+ doc/ref/misc-modules.texi |   68 +++++++++++++++++++++++++++++++++++++++++++++
+ doc/ref/scheme-using.texi |   38 +++++++++++++++++++++++--
+ 2 files changed, 103 insertions(+), 3 deletions(-)
 
 diff --git a/doc/ref/misc-modules.texi b/doc/ref/misc-modules.texi
-index cf1e0e4..770f354 100644
+index cf1e0e4..e2ca6f9 100644
 --- a/doc/ref/misc-modules.texi
 +++ b/doc/ref/misc-modules.texi
-@@ -1789,6 +1789,97 @@ example with the Scheme @code{read} function (@pxref{Scheme Read}),
+@@ -1788,6 +1788,74 @@ example with the Scheme @code{read} function (@pxref{Scheme Read}),
+ @end example
  @end deffn
- 
  
 +@node Colorized
 +@section Colorized
@@ -62,6 +59,8 @@ index cf1e0e4..770f354 100644
 +@cindex Colorized String
 +Also exported by the @code{(ice-9 colorized)} module is
 +@code{colorize-string}, a procedure to format a string in certain color.
++Note: This feature works under most mainstream console whose respect ansi-color,
++but causes messes under some console.
 +
 +@lisp
 +(use-modules (ice-9 colorized))
@@ -82,39 +81,14 @@ index cf1e0e4..770f354 100644
 +Print @var{str} in @var{color}.
 +@end deffn
 +
-+Here is the available colors:
-+CLEAR,
-+RESET,
-+BOLD,
-+DARK,
-+UNDERLINE, 
-+UNDERSCORE,
-+BLINK,     
-+REVERSE,   
-+CONCEALED, 
-+BLACK,
-+RED,       
-+GREEN,     
-+YELLOW,    
-+BLUE,      
-+MAGENTA,   
-+CYAN,      
-+WHITE,     
-+ON-BLACK,  
-+ON-RED,    
-+ON-GREEN,  
-+ON-YELLOW, 
-+ON-BLUE,   
-+ON-MAGENTA,
-+ON-CYAN, 
-+ON-WHITE
-+
-+
++@deffn {Scheme Procedure} show-all-colors
++Print all available colors.
++@end deffn
+ 
  @c Local Variables:
  @c TeX-master: "guile.texi"
- @c End:
 diff --git a/doc/ref/scheme-using.texi b/doc/ref/scheme-using.texi
-index e0f91af..fe302c2 100644
+index e0f91af..7a77c92 100644
 --- a/doc/ref/scheme-using.texi
 +++ b/doc/ref/scheme-using.texi
 @@ -37,6 +37,7 @@ support for languages other than Scheme.
@@ -163,16 +137,19 @@ index e0f91af..fe302c2 100644
  @node Value History
  @subsection Value History
  
-@@ -147,7 +179,8 @@ data structure or closure, they may then be reclaimed by the garbage collector.
+@@ -147,9 +179,9 @@ data structure or closure, they may then be reclaimed by the garbage collector.
  
  @cindex commands
  The REPL exists to read expressions, evaluate them, and then print their
 -results. But sometimes one wants to tell the REPL to evaluate an
-+results. But sometimes o
-+ne wants to tell the REPL to evaluate an
- expression in a different way, or to do something else altogether. A
- user can affect the way the REPL works with a @dfn{REPL command}.
+-expression in a different way, or to do something else altogether. A
+-user can affect the way the REPL works with a @dfn{REPL command}.
++results. But sometimes one wants to tell the REPL to evaluate an expression
++in a different way, or to do something else altogether. A user can affect
++the way the REPL works with a @dfn{REPL command}.
  
+ The previous section had an example of a command, in the form of
+ @code{,option}.
 -- 
-1.7.10.4
+1.7.0.4
 
