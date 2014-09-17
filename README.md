@@ -11,7 +11,7 @@ Just type "sudo make install". (There's no need to run "make")
 ## TEST
 Copy these lines below to your REPL for test:
 
-```
+```scheme
 (use-modules (oop goops) (rnrs) (ice-9 colorized))
 (activate-colorized)
 `(this-is-a-symbol 1 2.5 2/5 #\c "asdf" ,(lambda () #t) ,(cons 1 2) ,
@@ -21,7 +21,7 @@ Copy these lines below to your REPL for test:
 
 ## ENJOY
 And you may add these to your ~/.guile
-```
+```scheme
 (use-modules (ice-9 colorized))
 (activate-colorized)
 ```
