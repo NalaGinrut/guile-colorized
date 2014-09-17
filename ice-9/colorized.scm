@@ -1,4 +1,4 @@
-;; Copyright (C) 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2013,2014 Free Software Foundation, Inc.
 
 ;;;; This library is free software; you can redistribute it and/or
 ;;;; modify it under the terms of the GNU Lesser General Public
@@ -17,21 +17,34 @@
 ;;;; Author: Mu Lei known as NalaGinrut <nalaginrut@gmail.com>
 
 (define-module (ice-9 colorized)
+  #:use-module (system base language)
   #:use-module (ice-9 rdelim)
+  #:use-module (ice-9 match)
+  #:use-module (ice-9 regex)
   #:use-module ((srfi srfi-1) #:select (filter-map any proper-list?))
   #:use-module (srfi srfi-9)
   #:use-module (system repl common)
-  #:export (activate-colorized custom-colorized-set! color-it colorize-it colorize
-            color-func colorize-string colorized-display add-color-scheme!))
+  #:export (activate-colorized
+            custom-colorized-set!
+            color-it
+            colorize-it
+            colorize
+            color-func
+            colorize-string
+            colorized-display
+            add-color-scheme!))
+
+(define *bug-report* "https://github.com/NalaGinrut/guile-colorized")
 
 (define (colorized-repl-printer repl val)
   (colorize-it val))
 
 (define (activate-colorized)
   (let ((rs (fluid-ref *repl-stack*)))
+    (repl-default-prompt-set! generate-colored-prompt) ; colorize the prompt
     (if (null? rs)
-	(repl-default-option-set! 'print colorized-repl-printer) ; if no REPL started, set as default printer
-	(repl-option-set! (car rs) 'print colorized-repl-printer)))) ; or set as the top-REPL printer
+        (repl-default-option-set! 'print colorized-repl-printer) ; if no REPL started, set as default printer
+        (repl-option-set! (car rs) 'print colorized-repl-printer)))) ; or set as the top-REPL printer
 
 ;; color-scheme context, contains some info to be used
 (define-record-type color-scheme
@@ -373,3 +386,10 @@
   (call-with-output-string
    (lambda (port)
      (colorize obj port))))
+
+(define (generate-colored-prompt repl)
+  (string-append
+   (colorize-string (object->string (language-name (repl-language repl))) '(MAGENTA))
+   (colorize-string "@(" '(CYAN))
+   (colorize-string (object->string (car (module-name (current-module)))) '(WHITE))
+   (colorize-string ")> " '(CYAN))))
