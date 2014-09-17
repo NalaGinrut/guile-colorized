@@ -5,22 +5,25 @@ colorized REPL for GNU Guile
 NOTE: Now guile-colorized only support Guile-2.0.9 or higher!
 Drop your Guile-1.8.x from now on ;-)
 
-* INSTALL
+## INSTALL
 Just type "sudo make install". (There's no need to run "make")
 
-* TEST
+## TEST
 Copy these lines below to your REPL for test:
--------------------------------
+
+```
 (use-modules (oop goops) (rnrs) (ice-9 colorized))
 (activate-colorized)
-`(this-is-a-symbol 1 2.5 2/5 #\c "asdf" ,(lambda () #t) ,(cons 1 2) ,(vector 1 2 3) #2u32@2@3((1 2) (3 4)) ,(make-bytevector 10 99) ,<object>)
--------------------------------
+`(this-is-a-symbol 1 2.5 2/5 #\c "asdf" ,(lambda () #t) ,(cons 1 2) ,
+  (vector 1 2 3) #2u32@2@3((1 2) (3 4)) ,(make-bytevector 10 99) ,<object>)
+```
 
-* ENJOY
+
+## ENJOY
 And you may add these to your ~/.guile
--------------------------------
+```
 (use-modules (ice-9 colorized))
 (activate-colorized)
--------------------------------
+```
 
 Enjoy it!
