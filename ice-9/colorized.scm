@@ -391,5 +391,5 @@
   (string-append
    (colorize-string (object->string (language-name (repl-language repl))) '(MAGENTA))
    (colorize-string "@(" '(CYAN))
-   (colorize-string (object->string (car (module-name (current-module)))) '(WHITE))
+   (colorize-string (format #f "~{~a~^ ~}" (module-name (current-module))) '(WHITE))
    (colorize-string ")> " '(CYAN))))
