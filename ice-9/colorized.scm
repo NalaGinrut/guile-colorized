@@ -388,8 +388,13 @@
      (colorize obj port))))
 
 (define (generate-colored-prompt repl)
-  (string-append
-   (colorize-string (object->string (language-name (repl-language repl))) '(MAGENTA))
-   (colorize-string "@(" '(CYAN))
-   (colorize-string (format #f "~{~a~^ ~}" (module-name (current-module))) '(WHITE))
-   (colorize-string ")> " '(CYAN))))
+  (let ((level (length (cond
+                        ((fluid-ref *repl-stack*) => cdr)
+                        (else '())))))
+    (string-append
+     (colorize-string (object->string (language-name (repl-language repl))) '(MAGENTA))
+     (colorize-string "@(" '(CYAN))
+     (colorize-string (format #f "~{~a~^ ~}" (module-name (current-module))) '(WHITE))
+     (colorize-string ")" '(CYAN))
+     (colorize-string (if (zero? level) "" (format #f " [~a]" level)) '(RED))
+     (colorize-string "> " '(CYAN)))))
