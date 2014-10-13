@@ -39,9 +39,9 @@
 (define (colorized-repl-printer repl val)
   (colorize-it val))
 
-(define (activate-colorized)
+(define* (activate-colorized #:key (colored-prompt? #f))
   (let ((rs (fluid-ref *repl-stack*)))
-    (repl-default-prompt-set! generate-colored-prompt) ; colorize the prompt
+    (and colored-prompt? (repl-default-prompt-set! generate-colored-prompt)) ; colorize the prompt
     (if (null? rs)
         (repl-default-option-set! 'print colorized-repl-printer) ; if no REPL started, set as default printer
         (repl-option-set! (car rs) 'print colorized-repl-printer)))) ; or set as the top-REPL printer
@@ -386,7 +386,7 @@
   (call-with-output-string
    (lambda (port)
      (colorize obj port))))
-
+  
 (define (generate-colored-prompt repl)
   (let ((level (length (cond
                         ((fluid-ref *repl-stack*) => cdr)
@@ -396,5 +396,5 @@
      (colorize-string "@(" '(CYAN))
      (colorize-string (format #f "~{~a~^ ~}" (module-name (current-module))) '(WHITE))
      (colorize-string ")" '(CYAN))
-     (colorize-string (if (zero? level) "" (format #f " [~a]" level)) '(RED))
+     (if (zero? level) "" (colorize-string (format #f " [~a]" level) '(RED)))
      (colorize-string "> " '(CYAN)))))
