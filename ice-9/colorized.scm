@@ -93,8 +93,10 @@
         ""
         (string-append "\x1b[" (string-join color-list ";" 'infix) "m"))))
 
-(define (colorize-string-helper color str control)
-  (string-append (generate-color color) str (generate-color control)))
+(define* (colorize-string-helper color str control #:optional (rl-ignore #f))
+  (if rl-ignore
+      (string-append "\x01" (generate-color color) "\x02" str "\x01" (generate-color control) "\x02")
+      (string-append (generate-color color) str (generate-color control))))
 
 ;; test-helper functions
 ;; when eanbled, it won't output colored result, but just normal.
@@ -364,10 +366,10 @@
 (define (generate-custom-string-color-scheme str color)
   (make-color-scheme str #f color '(RESET) color-string))
 
-(define (colorize-string str color)
+(define* (colorize-string str color #:optional (rl-ignore #f))
   "Example: (colorize-string \"hello\" '(BLUE BOLD))" 
   (and (not (list? color)) (error colorize-string "color should be a list!" color))
-  (colorize-string-helper color str '(RESET)))
+  (colorize-string-helper color str '(RESET) rl-ignore))
 
 (define (colorized-display str color)
   "Example: (colorized-display \"hello\" '(BLUE BOLD))"
@@ -392,9 +394,9 @@
                         ((fluid-ref *repl-stack*) => cdr)
                         (else '())))))
     (string-append
-     (colorize-string (object->string (language-name (repl-language repl))) '(MAGENTA))
-     (colorize-string "@(" '(CYAN))
-     (colorize-string (format #f "~{~a~^ ~}" (module-name (current-module))) '(WHITE))
-     (colorize-string ")" '(CYAN))
-     (colorize-string (if (zero? level) "" (format #f " [~a]" level)) '(RED))
-     (colorize-string "> " '(CYAN)))))
+     (colorize-string (object->string (language-name (repl-language repl))) '(MAGENTA) #t)
+     (colorize-string "@(" '(CYAN) #t)
+     (colorize-string (format #f "~{~a~^ ~}" (module-name (current-module))) '(WHITE) #t)
+     (colorize-string ")" '(CYAN) #t)
+     (colorize-string (if (zero? level) "" (format #f " [~a]" level)) '(RED) #t)
+     (colorize-string "> " '(CYAN) #t))))
