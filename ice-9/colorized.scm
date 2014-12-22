@@ -21,7 +21,7 @@
   #:use-module (ice-9 rdelim)
   #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
-  #:use-module ((srfi srfi-1) #:select (filter-map any proper-list?))
+  #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
   #:use-module (system repl common)
   #:export (activate-colorized
@@ -39,9 +39,9 @@
 (define (colorized-repl-printer repl val)
   (colorize-it val))
 
-(define (activate-colorized)
+(define* (activate-colorized #:key (colored-promt? #t))
   (let ((rs (fluid-ref *repl-stack*)))
-    (repl-default-prompt-set! generate-colored-prompt) ; colorize the prompt
+    (and colored-promt? (repl-default-prompt-set! generate-colored-prompt)) ; colorize the prompt
     (if (null? rs)
         (repl-default-option-set! 'print colorized-repl-printer) ; if no REPL started, set as default printer
         (repl-option-set! (car rs) 'print colorized-repl-printer)))) ; or set as the top-REPL printer
@@ -180,6 +180,9 @@
        (pre-print cs port)
        (display (string-join (map ->cstr obj) " ") port)
        (post-print cs port)))))
+
+(define (color-cicular-list cs)
+  (color-it cs))
 
 (define lpair (make-parameter #f))
 (define (color-long-pair obj port)
@@ -328,6 +331,7 @@
     (,string? STRING ,color-string (RED))
     (,proper-list? LIST ,color-list (BLUE BOLD))
     ;; NOTE: proper-list is a <pair>, and cons is <pair> too, so we put list checker before pair
+    (,circular-list? CICULAR-LIST ,color-cicular-list (BLACK BOLD))
     (,pair? PAIR ,color-pair (BLACK BOLD))
     (,class? CLASS ,color-class (CYAN BOLD))
     (,procedure? PROCEDURE ,color-procedure (YELLOW BOLD))
