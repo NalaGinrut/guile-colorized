@@ -6,3 +6,6 @@ all:
 
 install:
 	cp -fr ice-9/colorized.scm $(TARGET) 
+
+uninstall:
+	rm -r $(TARGET)/colorized.scm 
