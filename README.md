@@ -1,9 +1,8 @@
 guile-colorized
 ===============
 
-__Because Microsoft has aquired GitHub, as a congrats, I would like to migrate this project to GitLab and this repo will not be maintained on GitHub anymore:__
-
-https://gitlab.com/NalaGinrut/guile-colorized
+Because Microsoft has aquired GitHub, as a congrats, I would like to migrate this project to GitLab and this repo will not be maintained on GitHub anymore: https://gitlab.com/NalaGinrut/guile-colorized
+=========
 
 colorized REPL for GNU Guile
 NOTE: Now guile-colorized only support Guile-2.0.9 or higher!
